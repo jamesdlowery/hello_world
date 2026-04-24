@@ -1,0 +1,57 @@
+name: Build Test Executables
+
+on:
+  push:
+    tags:
+      - 'test-v*'         # triggers ONLY on test-vX.X tags
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            ext: ''
+          - os: windows-latest
+            platform: windows
+            ext: '.exe'
+          - os: macos-latest
+            platform: macos
+            ext: ''
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Extract version from tag
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#test-}" >> $GITHUB_ENV
+
+      - name: Build executable
+        shell: bash
+        run: |
+          OUTNAME="hello_world_test_${{ env.VERSION }}_${{ matrix.platform }}${{ matrix.ext }}"
+          pyinstaller --onefile --name "$OUTNAME" hello_world_test_${{ env.VERSION }}.py
+
+      - name: Upload to draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: TEST ${{ env.VERSION }} — Acceptance Testing Build
+          draft: true
+          prerelease: true
+          files: dist/hello_world_test_*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
