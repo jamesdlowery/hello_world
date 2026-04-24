@@ -1,0 +1,52 @@
+name: Build Dev Executables
+
+on:
+  push:
+    tags:
+      - 'dev-v*'          # triggers ONLY on dev-vX.X tags
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            ext: ''
+          - os: windows-latest
+            platform: windows
+            ext: '.exe'
+          - os: macos-latest
+            platform: macos
+            ext: ''
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Extract version from tag
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#dev-}" >> $GITHUB_ENV
+
+      - name: Build executable
+        shell: bash
+        run: |
+          OUTNAME="hello_world_dev_${{ env.VERSION }}_${{ matrix.platform }}${{ matrix.ext }}"
+          pyinstaller --onefile --name "$OUTNAME" hello_world_dev_${{ env.VERSION }}.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hello_world_dev_${{ env.VERSION }}_${{ matrix.platform }}
+          path: dist/hello_world_dev_*
